@@ -1,8 +1,12 @@
-# Instalacion
+# Instalacion rapida y ejecucion:
 Despues de clonar el reporsitorio:
+cd proyecto  (mover la terminal al directorio del proyecto)
+
 npm install (para generar node_modules)
 
 Iniciar la pagina: npm run dev
+
+ctrl + clic en el link que te da
 
 
 
