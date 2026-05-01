@@ -1,3 +1,11 @@
+# Instalacion
+Despues de clonar el reporsitorio:
+npm install (para generar node_modules)
+
+Iniciar la pagina: npm run dev
+
+
+
 # GestiónDoc — Sistema de Gestión de Trámites
 
 ## Instalación de dependencias
