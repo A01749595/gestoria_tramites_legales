@@ -1,4 +1,4 @@
-# Instalacion rapida y ejecucion:
+# Instalación rápida de Node.js y ejecución:
 Despues de clonar el reporsitorio:
 cd proyecto  (mover la terminal al directorio del proyecto)
 
