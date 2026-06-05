@@ -1,0 +1,42 @@
+# --- Streamlit / FastAPI ---
+streamlit>=1.32
+python-dotenv>=1.0
+python-dateutil>=2.8
+
+# --- OCR (Tesseract + PyMuPDF, sin Azure) ---
+PyMuPDF>=1.24
+pytesseract>=0.3.10
+pillow>=10.0
+
+# --- LLM ---
+openai>=1.30
+numpy>=1.26
+
+# --- Storage ---
+supabase>=2.5
+
+# --- Visualización ---
+pandas>=2.2.0
+plotly>=5.18
+requests>=2.31
+
+# --- Modelos de datos ---
+pydantic>=2.7
+email-validator>=2.0
+
+# --- Integraciones opcionales (real cuando hay credenciales, simulado si no) ---
+# google-api-python-client>=2.0
+# google-auth>=2.0
+twilio>=8.0
+
+# --- API HTTP ---
+fastapi>=0.110
+uvicorn[standard]>=0.27
+python-multipart>=0.0.9
+
+# --- Autenticación, Base de Datos y Seguridad ---
+sqlalchemy
+passlib[bcrypt]
+pyjwt
+pydantic[email]
+bcrypt
