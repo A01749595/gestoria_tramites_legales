@@ -1,0 +1,869 @@
+{
+  "sucursales": [
+    {
+      "tramite_id": "T-001",
+      "nombre": "San Antonio Abad",
+      "estado": "",
+      "municipio": "",
+      "permisos": [
+        {
+          "no": "1",
+          "permiso": "Aviso de funcionamiento",
+          "vigencia_2025": "Permanente",
+          "vigencia_2026": "Permanente"
+        },
+        {
+          "no": "2",
+          "permiso": "Uso de suelo",
+          "vigencia_2025": "Sin trámite",
+          "vigencia_2026": "Sin trámite"
+        },
+        {
+          "no": "3",
+          "permiso": "Anuncio",
+          "vigencia_2025": "Sin trámite",
+          "vigencia_2026": "Sin trámite"
+        },
+        {
+          "no": "4",
+          "permiso": "Protección Civil",
+          "vigencia_2025": "Vo Bo",
+          "vigencia_2026": "Vo Bo"
+        },
+        {
+          "no": "5",
+          "permiso": "Licencia Ambiental",
+          "vigencia_2025": "",
+          "vigencia_2026": ""
+        }
+      ]
+    },
+    {
+      "tramite_id": "T-003",
+      "nombre": "Portales",
+      "estado": "",
+      "municipio": "",
+      "permisos": [
+        {
+          "no": "1",
+          "permiso": "Aviso de funcionamiento",
+          "vigencia_2025": "Permanente",
+          "vigencia_2026": "Permanente"
+        },
+        {
+          "no": "2",
+          "permiso": "Uso de suelo",
+          "vigencia_2025": "18/03/2026",
+          "vigencia_2026": "Pendiente"
+        },
+        {
+          "no": "3",
+          "permiso": "Anuncio",
+          "vigencia_2025": "Sin trámite",
+          "vigencia_2026": "Sin trámite"
+        },
+        {
+          "no": "4",
+          "permiso": "Protección Civil",
+          "vigencia_2025": "No aplica",
+          "vigencia_2026": "No aplica"
+        },
+        {
+          "no": "5",
+          "permiso": "Licencia Ambiental",
+          "vigencia_2025": "",
+          "vigencia_2026": ""
+        }
+      ]
+    },
+    {
+      "tramite_id": "T-007",
+      "nombre": "Tlanepantla",
+      "estado": "",
+      "municipio": "",
+      "permisos": [
+        {
+          "no": "1",
+          "permiso": "Aviso de funcionamiento",
+          "vigencia_2025": "Permanente",
+          "vigencia_2026": "Permanente"
+        },
+        {
+          "no": "2",
+          "permiso": "Uso de suelo",
+          "vigencia_2025": "No aplica",
+          "vigencia_2026": "No aplica"
+        },
+        {
+          "no": "3",
+          "permiso": "Anuncio",
+          "vigencia_2025": "31/12/2025",
+          "vigencia_2026": "Pagado"
+        },
+        {
+          "no": "4",
+          "permiso": "Protección Civil Visto Bueno",
+          "vigencia_2025": "19/05/2026",
+          "vigencia_2026": ""
+        },
+        {
+          "no": "5",
+          "permiso": "Licencia Ambiental",
+          "vigencia_2025": "",
+          "vigencia_2026": ""
+        }
+      ]
+    },
+    {
+      "tramite_id": "T-008",
+      "nombre": "Chalco",
+      "estado": "",
+      "municipio": "",
+      "permisos": [
+        {
+          "no": "1",
+          "permiso": "Aviso de funcionamiento",
+          "vigencia_2025": "31/12/2025",
+          "vigencia_2026": ""
+        },
+        {
+          "no": "2",
+          "permiso": "Uso de suelo",
+          "vigencia_2025": "No aplica",
+          "vigencia_2026": "No aplica"
+        },
+        {
+          "no": "3",
+          "permiso": "Anuncio",
+          "vigencia_2025": "31/12/2025",
+          "vigencia_2026": "Pagado"
+        },
+        {
+          "no": "4",
+          "permiso": "Protección Civil Visto Bueno",
+          "vigencia_2025": "31/12/2025",
+          "vigencia_2026": "Pagado"
+        },
+        {
+          "no": "5",
+          "permiso": "Licencia Ambiental",
+          "vigencia_2025": "",
+          "vigencia_2026": ""
+        }
+      ]
+    },
+    {
+      "tramite_id": "T-014",
+      "nombre": "Puebla Outlet",
+      "estado": "",
+      "municipio": "",
+      "permisos": [
+        {
+          "no": "1",
+          "permiso": "Aviso de funcionamiento",
+          "vigencia_2025": "21/12/2025",
+          "vigencia_2026": "31/12/2026"
+        },
+        {
+          "no": "2",
+          "permiso": "Uso de suelo",
+          "vigencia_2025": "10/01/2026",
+          "vigencia_2026": "11/02/2027"
+        },
+        {
+          "no": "3",
+          "permiso": "Anuncio",
+          "vigencia_2025": "Sin trámite",
+          "vigencia_2026": "31/12/2026"
+        },
+        {
+          "no": "4",
+          "permiso": "Protección Civil Visto Bueno",
+          "vigencia_2025": "20/02/2026",
+          "vigencia_2026": "27/02/2027"
+        },
+        {
+          "no": "5",
+          "permiso": "Dictamen de medidas contra incendio",
+          "vigencia_2025": "20/02/2026",
+          "vigencia_2026": "27/02/2027"
+        },
+        {
+          "no": "6",
+          "permiso": "Licencia Ambiental",
+          "vigencia_2025": "",
+          "vigencia_2026": ""
+        },
+        {
+          "no": "7",
+          "permiso": "Alineamiento y No oficial",
+          "vigencia_2025": "27/11/2025",
+          "vigencia_2026": "11/02/2027"
+        }
+      ]
+    },
+    {
+      "tramite_id": "T-015",
+      "nombre": "Atlixco",
+      "estado": "",
+      "municipio": "",
+      "permisos": [
+        {
+          "no": "1",
+          "permiso": "Aviso de funcionamiento",
+          "vigencia_2025": "31/12/2025",
+          "vigencia_2026": "Pagado"
+        },
+        {
+          "no": "2",
+          "permiso": "Uso de suelo",
+          "vigencia_2025": "Permanente",
+          "vigencia_2026": "Permanente"
+        },
+        {
+          "no": "3",
+          "permiso": "Anuncio",
+          "vigencia_2025": "Sin tramite",
+          "vigencia_2026": "Sin tramite"
+        },
+        {
+          "no": "4",
+          "permiso": "Protección Civil Visto Bueno",
+          "vigencia_2025": "06/02/2026",
+          "vigencia_2026": "Pagado"
+        },
+        {
+          "no": "5",
+          "permiso": "Dictamen Bomberos",
+          "vigencia_2025": "06/02/2026",
+          "vigencia_2026": "Pagado"
+        },
+        {
+          "no": "6",
+          "permiso": "Licencia Ambiental",
+          "vigencia_2025": "",
+          "vigencia_2026": ""
+        }
+      ]
+    },
+    {
+      "tramite_id": "T-016",
+      "nombre": "Puebla",
+      "estado": "",
+      "municipio": "",
+      "permisos": [
+        {
+          "no": "1",
+          "permiso": "Aviso de funcionamiento",
+          "vigencia_2025": "Permanente",
+          "vigencia_2026": "Permanente"
+        },
+        {
+          "no": "2",
+          "permiso": "Uso de suelo",
+          "vigencia_2025": "Permanente",
+          "vigencia_2026": "Permanente"
+        },
+        {
+          "no": "3",
+          "permiso": "Factibilidad de uso de suelo centro histórico",
+          "vigencia_2025": "Sin trámite",
+          "vigencia_2026": "Permanente"
+        },
+        {
+          "no": "4",
+          "permiso": "Anuncio",
+          "vigencia_2025": "Sin trámite",
+          "vigencia_2026": "Sin tramite"
+        },
+        {
+          "no": "5",
+          "permiso": "Protección Civil Visto Bueno",
+          "vigencia_2025": "16/10/2026",
+          "vigencia_2026": ""
+        },
+        {
+          "no": "6",
+          "permiso": "Dictamen Bomberos",
+          "vigencia_2025": "06/11/2026",
+          "vigencia_2026": ""
+        },
+        {
+          "no": "7",
+          "permiso": "Licencia Ambiental",
+          "vigencia_2025": "",
+          "vigencia_2026": ""
+        }
+      ]
+    },
+    {
+      "tramite_id": "T-017",
+      "nombre": "Izúcar",
+      "estado": "",
+      "municipio": "",
+      "permisos": [
+        {
+          "no": "1",
+          "permiso": "Aviso de funcionamiento",
+          "vigencia_2025": "31/12/2025",
+          "vigencia_2026": ""
+        },
+        {
+          "no": "2",
+          "permiso": "Uso de suelo",
+          "vigencia_2025": "31/12/2025",
+          "vigencia_2026": "31/12/2026"
+        },
+        {
+          "no": "3",
+          "permiso": "Anuncio",
+          "vigencia_2025": "31/12/2025",
+          "vigencia_2026": "31/12/2026"
+        },
+        {
+          "no": "4",
+          "permiso": "Protección Civil Visto Bueno",
+          "vigencia_2025": "31/12/2025",
+          "vigencia_2026": "31/12/2026"
+        },
+        {
+          "no": "5",
+          "permiso": "Licencia Ambiental",
+          "vigencia_2025": "",
+          "vigencia_2026": ""
+        }
+      ]
+    },
+    {
+      "tramite_id": "T-018",
+      "nombre": "Huamantla",
+      "estado": "",
+      "municipio": "",
+      "permisos": [
+        {
+          "no": "1",
+          "permiso": "Aviso de funcionamiento",
+          "vigencia_2025": "31/12/2025",
+          "vigencia_2026": ""
+        },
+        {
+          "no": "2",
+          "permiso": "Uso de suelo",
+          "vigencia_2025": "31/12/2025",
+          "vigencia_2026": ""
+        },
+        {
+          "no": "3",
+          "permiso": "Anuncio",
+          "vigencia_2025": "Sin trámite",
+          "vigencia_2026": ""
+        },
+        {
+          "no": "4",
+          "permiso": "Protección Civil Visto Bueno",
+          "vigencia_2025": "31/12/2025",
+          "vigencia_2026": ""
+        },
+        {
+          "no": "5",
+          "permiso": "Licencia Ambiental",
+          "vigencia_2025": "",
+          "vigencia_2026": ""
+        }
+      ]
+    },
+    {
+      "tramite_id": "T-019",
+      "nombre": "Orizaba",
+      "estado": "",
+      "municipio": "",
+      "permisos": [
+        {
+          "no": "1",
+          "permiso": "Aviso de funcionamiento",
+          "vigencia_2025": "31/12/2025",
+          "vigencia_2026": ""
+        },
+        {
+          "no": "2",
+          "permiso": "Uso de suelo",
+          "vigencia_2025": "31/12/2025",
+          "vigencia_2026": ""
+        },
+        {
+          "no": "3",
+          "permiso": "Anuncio",
+          "vigencia_2025": "31/12/2025",
+          "vigencia_2026": "31/12/2016"
+        },
+        {
+          "no": "4",
+          "permiso": "Protección Civil Visto Bueno",
+          "vigencia_2025": "22/11/2027",
+          "vigencia_2026": ""
+        },
+        {
+          "no": "5",
+          "permiso": "Convenio de bomberos",
+          "vigencia_2025": "09/10/2026",
+          "vigencia_2026": ""
+        },
+        {
+          "no": "6",
+          "permiso": "Licencia ambiental",
+          "vigencia_2025": "",
+          "vigencia_2026": ""
+        }
+      ]
+    },
+    {
+      "tramite_id": "T-022",
+      "nombre": "Veracruz",
+      "estado": "",
+      "municipio": "",
+      "permisos": [
+        {
+          "no": "1",
+          "permiso": "Aviso de funcionamiento",
+          "vigencia_2025": "Permanente",
+          "vigencia_2026": "Permanente"
+        },
+        {
+          "no": "2",
+          "permiso": "Uso de suelo",
+          "vigencia_2025": "07/11/2026",
+          "vigencia_2026": ""
+        },
+        {
+          "no": "3",
+          "permiso": "Anuncio",
+          "vigencia_2025": "Sin trámite",
+          "vigencia_2026": ""
+        },
+        {
+          "no": "4",
+          "permiso": "Protección Civil Visto Bueno",
+          "vigencia_2025": "12/12/2026",
+          "vigencia_2026": ""
+        },
+        {
+          "no": "5",
+          "permiso": "Licencia Ambiental",
+          "vigencia_2025": "",
+          "vigencia_2026": ""
+        }
+      ]
+    },
+    {
+      "tramite_id": "T-023",
+      "nombre": "Chilpancingo",
+      "estado": "",
+      "municipio": "",
+      "permisos": [
+        {
+          "no": "1",
+          "permiso": "Aviso de funcionamiento",
+          "vigencia_2025": "31/12/2025",
+          "vigencia_2026": "31/12/2026"
+        },
+        {
+          "no": "2",
+          "permiso": "Uso de suelo",
+          "vigencia_2025": "Permanente",
+          "vigencia_2026": "Permanente"
+        },
+        {
+          "no": "3",
+          "permiso": "Anuncio",
+          "vigencia_2025": "31/12/2025",
+          "vigencia_2026": "31/12/2026"
+        },
+        {
+          "no": "4",
+          "permiso": "Protección Civil Visto Bueno",
+          "vigencia_2025": "31/12/2025",
+          "vigencia_2026": "31/12/2026"
+        },
+        {
+          "no": "5",
+          "permiso": "Dictamen de bomberos",
+          "vigencia_2025": "31/12/2025",
+          "vigencia_2026": "31/12/2026"
+        },
+        {
+          "no": "6",
+          "permiso": "Dictamen de regulación de niveles máximos de sonido",
+          "vigencia_2025": "31/12/2025",
+          "vigencia_2026": "31/12/2026"
+        },
+        {
+          "no": "7",
+          "permiso": "Licencia ambiental",
+          "vigencia_2025": "31/12/2025",
+          "vigencia_2026": "31/12/2026"
+        }
+      ]
+    },
+    {
+      "tramite_id": "T-024",
+      "nombre": "Zamora",
+      "estado": "",
+      "municipio": "",
+      "permisos": [
+        {
+          "no": "1",
+          "permiso": "Aviso de funcionamiento",
+          "vigencia_2025": "31/12/2025",
+          "vigencia_2026": "31/12/2025"
+        },
+        {
+          "no": "2",
+          "permiso": "Uso de suelo",
+          "vigencia_2025": "No aplica",
+          "vigencia_2026": "No aplica"
+        },
+        {
+          "no": "3",
+          "permiso": "Anuncio",
+          "vigencia_2025": "31/12/2025",
+          "vigencia_2026": "31/12/2025"
+        },
+        {
+          "no": "4",
+          "permiso": "Protección Civil Visto Bueno",
+          "vigencia_2025": "24/11/2026",
+          "vigencia_2026": ""
+        },
+        {
+          "no": "5",
+          "permiso": "Aprobación del Programa de Protección C",
+          "vigencia_2025": "24/11/2026",
+          "vigencia_2026": ""
+        },
+        {
+          "no": "6",
+          "permiso": "Licencia Ambiental",
+          "vigencia_2025": "",
+          "vigencia_2026": ""
+        }
+      ]
+    },
+    {
+      "tramite_id": "T-025",
+      "nombre": "Uruapan",
+      "estado": "",
+      "municipio": "",
+      "permisos": [
+        {
+          "no": "1",
+          "permiso": "Aviso de funcionamiento",
+          "vigencia_2025": "31/12/2025",
+          "vigencia_2026": "31/12/2026"
+        },
+        {
+          "no": "2",
+          "permiso": "Uso de suelo",
+          "vigencia_2025": "No aplica",
+          "vigencia_2026": "No aplica"
+        },
+        {
+          "no": "3",
+          "permiso": "Anuncio",
+          "vigencia_2025": "31/12/2025",
+          "vigencia_2026": "31/12/2026"
+        },
+        {
+          "no": "4",
+          "permiso": "Protección Civil Visto Bueno",
+          "vigencia_2025": "26/10/2026",
+          "vigencia_2026": ""
+        },
+        {
+          "no": "5",
+          "permiso": "Licencia Ambiental",
+          "vigencia_2025": "",
+          "vigencia_2026": ""
+        }
+      ]
+    },
+    {
+      "tramite_id": "T-028",
+      "nombre": "Mérida",
+      "estado": "",
+      "municipio": "",
+      "permisos": [
+        {
+          "no": "1",
+          "permiso": "Aviso de funcionamiento",
+          "vigencia_2025": "",
+          "vigencia_2026": ""
+        },
+        {
+          "no": "2",
+          "permiso": "Uso de suelo",
+          "vigencia_2025": "",
+          "vigencia_2026": ""
+        },
+        {
+          "no": "3",
+          "permiso": "Anuncio",
+          "vigencia_2025": "",
+          "vigencia_2026": ""
+        },
+        {
+          "no": "4",
+          "permiso": "Protección Civil Visto Bueno",
+          "vigencia_2025": "22/09/2026",
+          "vigencia_2026": ""
+        },
+        {
+          "no": "5",
+          "permiso": "Licencia Ambiental",
+          "vigencia_2025": "",
+          "vigencia_2026": ""
+        }
+      ]
+    },
+    {
+      "tramite_id": "T-030",
+      "nombre": "Tuxpan",
+      "estado": "",
+      "municipio": "",
+      "permisos": [
+        {
+          "no": "1",
+          "permiso": "Aviso de funcionamiento",
+          "vigencia_2025": "31/12/2025",
+          "vigencia_2026": "31/12/2026"
+        },
+        {
+          "no": "2",
+          "permiso": "Cedula de empadronamiento",
+          "vigencia_2025": "Sin trámite",
+          "vigencia_2026": "31/12/2026"
+        },
+        {
+          "no": "3",
+          "permiso": "Uso de suelo",
+          "vigencia_2025": "31/03/2026",
+          "vigencia_2026": ""
+        },
+        {
+          "no": "4",
+          "permiso": "Anuncio",
+          "vigencia_2025": "31/07/2026",
+          "vigencia_2026": ""
+        },
+        {
+          "no": "5",
+          "permiso": "Protección Civil Visto Bueno",
+          "vigencia_2025": "16/12/2025",
+          "vigencia_2026": ""
+        },
+        {
+          "no": "6",
+          "permiso": "Licencia Ambiental",
+          "vigencia_2025": "",
+          "vigencia_2026": ""
+        }
+      ]
+    },
+    {
+      "tramite_id": "T-032",
+      "nombre": "Tuxtla Gutiérrez",
+      "estado": "",
+      "municipio": "",
+      "permisos": [
+        {
+          "no": "1",
+          "permiso": "Aviso de funcionamiento",
+          "vigencia_2025": "16/10/2026",
+          "vigencia_2026": ""
+        },
+        {
+          "no": "2",
+          "permiso": "Uso de suelo",
+          "vigencia_2025": "Permanente",
+          "vigencia_2026": "Permanente"
+        },
+        {
+          "no": "3",
+          "permiso": "Anuncio",
+          "vigencia_2025": "31/12/2025",
+          "vigencia_2026": ""
+        },
+        {
+          "no": "4",
+          "permiso": "Protección Civil Visto Bueno",
+          "vigencia_2025": "03/06/2025",
+          "vigencia_2026": ""
+        },
+        {
+          "no": "5",
+          "permiso": "Licencia Ambiental",
+          "vigencia_2025": "",
+          "vigencia_2026": ""
+        }
+      ]
+    },
+    {
+      "tramite_id": "T-034",
+      "nombre": "Villa Hermosa",
+      "estado": "",
+      "municipio": "",
+      "permisos": [
+        {
+          "no": "1",
+          "permiso": "Aviso de funcionamiento",
+          "vigencia_2025": "31/12/2025",
+          "vigencia_2026": ""
+        },
+        {
+          "no": "2",
+          "permiso": "Uso de suelo",
+          "vigencia_2025": "",
+          "vigencia_2026": ""
+        },
+        {
+          "no": "3",
+          "permiso": "Anuncio",
+          "vigencia_2025": "",
+          "vigencia_2026": ""
+        },
+        {
+          "no": "4",
+          "permiso": "Protección Civil Visto Bueno",
+          "vigencia_2025": "22/10/2026",
+          "vigencia_2026": ""
+        },
+        {
+          "no": "5",
+          "permiso": "Licencia Ambiental",
+          "vigencia_2025": "",
+          "vigencia_2026": ""
+        }
+      ]
+    },
+    {
+      "tramite_id": "T-035",
+      "nombre": "Cuautla Bravos",
+      "estado": "",
+      "municipio": "",
+      "permisos": [
+        {
+          "no": "1",
+          "permiso": "Aviso de funcionamiento",
+          "vigencia_2025": "31/12/2025",
+          "vigencia_2026": "31/12/2026"
+        },
+        {
+          "no": "2",
+          "permiso": "Uso de suelo",
+          "vigencia_2025": "Permanente",
+          "vigencia_2026": "Permanente"
+        },
+        {
+          "no": "3",
+          "permiso": "Anuncio",
+          "vigencia_2025": "31/12/2025",
+          "vigencia_2026": "31/12/2026"
+        },
+        {
+          "no": "4",
+          "permiso": "Protección Civil Visto Bueno",
+          "vigencia_2025": "31/12/2025",
+          "vigencia_2026": "31/12/2026"
+        },
+        {
+          "no": "5",
+          "permiso": "Aprobación del programa de Protección C",
+          "vigencia_2025": "31/12/2025",
+          "vigencia_2026": "31/12/2026"
+        },
+        {
+          "no": "6",
+          "permiso": "Licencia Ambiental",
+          "vigencia_2025": "",
+          "vigencia_2026": ""
+        }
+      ]
+    },
+    {
+      "tramite_id": "T-037",
+      "nombre": "Apizaco",
+      "estado": "",
+      "municipio": "",
+      "permisos": [
+        {
+          "no": "1",
+          "permiso": "Aviso de funcionamiento",
+          "vigencia_2025": "",
+          "vigencia_2026": ""
+        },
+        {
+          "no": "2",
+          "permiso": "Uso de suelo",
+          "vigencia_2025": "",
+          "vigencia_2026": ""
+        },
+        {
+          "no": "3",
+          "permiso": "Anuncio",
+          "vigencia_2025": "",
+          "vigencia_2026": ""
+        },
+        {
+          "no": "4",
+          "permiso": "Protección Civil Visto Bueno",
+          "vigencia_2025": "31/12/2025",
+          "vigencia_2026": ""
+        },
+        {
+          "no": "5",
+          "permiso": "Licencia Ambiental",
+          "vigencia_2025": "31/12/2025",
+          "vigencia_2026": ""
+        }
+      ]
+    },
+    {
+      "tramite_id": "T-038",
+      "nombre": "Toluca",
+      "estado": "",
+      "municipio": "",
+      "permisos": [
+        {
+          "no": "1",
+          "permiso": "Aviso de funcionamiento",
+          "vigencia_2025": "31/12/2025",
+          "vigencia_2026": "Ingreso"
+        },
+        {
+          "no": "2",
+          "permiso": "Uso de suelo",
+          "vigencia_2025": "No aplica",
+          "vigencia_2026": "No aplica"
+        },
+        {
+          "no": "3",
+          "permiso": "Anuncio",
+          "vigencia_2025": "31/12/2025",
+          "vigencia_2026": ""
+        },
+        {
+          "no": "4",
+          "permiso": "Protección Civil Visto Bueno",
+          "vigencia_2025": "12/08/2026",
+          "vigencia_2026": ""
+        },
+        {
+          "no": "5",
+          "permiso": "Licencia Ambiental",
+          "vigencia_2025": "",
+          "vigencia_2026": ""
+        }
+      ]
+    }
+  ],
+  "actualizado_en": "2026-06-11T17:27:23.053592"
+}
