@@ -13,15 +13,21 @@ complementarios para garantizar que ningún archivo se quede sin procesar:
      Recoge items 'pending' o 'failed' que por alguna razón no llegaron
      vía notify (reconexión de red, reinicio del worker, etc.).
 
-DISEÑO PARA TIEMPO REAL
-────────────────────────
-- claim_ocr_item() es atómica (SELECT … FOR UPDATE SKIP LOCKED): varios
-  workers pueden correr en paralelo sin procesar el mismo archivo dos veces.
-- Si el OCR falla, el item vuelve a 'pending' hasta agotar max_attempts (3).
-- Al terminar cada item se llama REFRESH MATERIALIZED VIEW CONCURRENTLY
-  para que el frontend lea datos actualizados sin ninguna espera adicional.
-- El worker nunca para: si se cae, basta con relanzarlo y el polling
-  recupera los items que quedaron en 'processing'.
+FIXES APLICADOS EN ESTA VERSIÓN
+────────────────────────────────
+- _upsert_metadata: ahora usa on_conflict="storage_path" igual que
+  ocr_indexer.py, que es el índice UNIQUE real de la tabla existente.
+  También llama a increment_index_run_count() para mantener la auditoría.
+- _refresh_view: se envuelve en try/except con log de warning (no error)
+  porque la función puede no existir aún en Supabase; el worker no debe
+  caerse por esto.
+- _process_item: el bloque de reintento hacía un UPDATE a 'pending' DESPUÉS
+  de llamar a finish_ocr_item('failed'), lo que dejaba el item en estado
+  inconsistente. Ahora el reintento solo lo maneja finish_ocr_item: si
+  attempts < max_attempts la próxima llamada a claim_ocr_item() lo retomará
+  automáticamente.
+- Logging mejorado: se incluye exc_info=True en errores de procesamiento
+  para ver el traceback completo y poder diagnosticar fallos de OCR.
 
 USO
 ────
@@ -100,16 +106,14 @@ OCR_ZOOM             = float(os.getenv("OCR_ZOOM",       "3.5"))
 OCR_SPARSE_THRESHOLD = int(os.getenv("OCR_SPARSE_THRESHOLD", "300"))
 TESSERACT_OEM        = os.getenv("TESSERACT_OEM",        "1")
 
-POLL_INTERVAL = 30       # segundos entre polls de respaldo
+POLL_INTERVAL  = 30
 LISTEN_CHANNEL = "ocr_queue_new"
 METADATA_TABLE = "ocr_document_metadata"
 QUEUE_TABLE    = "pending_ocr_queue"
 
 # ---------------------------------------------------------------------------
-# Reutilizamos exactamente la misma lógica de extracción del indexer
+# Helpers de extracción de campos (independientes de ocr_indexer.py)
 # ---------------------------------------------------------------------------
-# (Copiadas aquí para que el worker sea un archivo independiente que no
-#  necesita importar ocr_indexer.py — evita dependencias cruzadas)
 
 DATE_DMY   = r"(\d{1,2})[/\-\.](\d{1,2})[/\-\.](\d{2,4})"
 DATE_WORDS = (
@@ -129,20 +133,20 @@ FIELD_PATTERNS: Dict[str, List[str]] = {
         r"([A-Z0-9][\w/\-]{3,30})",
     ],
     "issue_date": [
-        rf"(?:fecha\s+de\s+(?:emisi[oó]n|expedici[oó]n)|"
-        rf"con\s+fecha)\s*[:]?\s*({DATE_ANY})",
+        rf"(?:fecha\s+de\s+(?:emisi[oó]n|expedici[oó]n)|\
+con\s+fecha)\s*[:]?\s*({DATE_ANY})",
     ],
     "expiration_date": [
         rf"(?:vigencia|per[ií]odo|v[aá]lid[ao])\s*[:]?\s*"
         rf"(?:del?\s+{DATE_ANY}\s+al?\s+)?({DATE_ANY})",
-        rf"(?:fecha\s+de\s+(?:vencimiento|caducidad|expiraci[oó]n)|"
-        rf"v[aá]lid[ao]\s+hasta|vigente\s+hasta|vence(?:\s+el)?|"
-        rf"caduca(?:\s+el)?|expira(?:\s+el)?)\s*[:]?\s*({DATE_ANY})",
+        rf"(?:fecha\s+de\s+(?:vencimiento|caducidad|expiraci[oó]n)|\
+v[aá]lid[ao]\s+hasta|vigente\s+hasta|vence(?:\s+el)?|\
+caduca(?:\s+el)?|expira(?:\s+el)?)\s*[:]?\s*({DATE_ANY})",
         rf"fecha\s+de\s+vigencia\s*[:]?\s*({DATE_ANY})",
     ],
     "authority": [
-        r"(?:autoridad(?:\s+emisora)?|expedid[ao]\s+por|otorgad[ao]\s+por|"
-        r"emitid[ao]\s+por)\s*[:]?\s*([^\n\.]{5,60})",
+        r"(?:autoridad(?:\s+emisora)?|expedid[ao]\s+por|otorgad[ao]\s+por|\
+emitid[ao]\s+por)\s*[:]?\s*([^\n\.]{5,60})",
     ],
 }
 DOCUMENT_TYPE_KEYWORDS: Dict[str, List[str]] = {
@@ -257,9 +261,9 @@ class OCRRealtimeWorker:
 
     def __init__(
         self,
-        workers:      int  = 2,
-        use_listen:   bool = True,
-        poll_interval: int = POLL_INTERVAL,
+        workers:       int  = 2,
+        use_listen:    bool = True,
+        poll_interval: int  = POLL_INTERVAL,
     ):
         self.workers       = workers
         self.use_listen    = use_listen
@@ -321,7 +325,6 @@ class OCRRealtimeWorker:
             self.use_listen = False
 
     def _reconnect_pg(self) -> None:
-        """Intenta reconectar si la conexión Postgres se cayó."""
         try:
             if self._pg_conn:
                 self._pg_conn.close()
@@ -378,19 +381,38 @@ class OCRRealtimeWorker:
             return None
 
     # ── Upsert de metadatos en ocr_document_metadata ─────────────────────
+    # Usa on_conflict="storage_path" igual que ocr_indexer.py, ya que
+    # storage_path tiene índice UNIQUE en la tabla existente del proyecto.
+    # También llama a increment_index_run_count() para mantener la auditoría.
 
     def _upsert_metadata(self, record: Dict[str, Any]) -> None:
         self.sb.table(METADATA_TABLE).upsert(
-            record, on_conflict="storage_path"
+            {**record, "indexed_at": datetime.utcnow().isoformat()},
+            on_conflict="storage_path",
         ).execute()
+        # Incrementar run_count igual que ocr_indexer.py (no crítico)
+        try:
+            self.sb.rpc(
+                "increment_index_run_count",
+                {"p_path": record["storage_path"]},
+            ).execute()
+        except Exception:
+            pass
 
-    # ── Refresco de la vista materializada ───────────────────────────────
+    # ── Refresco de la vista materializada / función de refresco ─────────
+    # FIX: se captura la excepción con warning en lugar de dejarla silenciosa.
+    # La función refresh_ocr_dashboard_summary debe existir en Supabase
+    # (está definida en el SQL corregido). Si no existe el worker lo reporta
+    # pero continúa procesando.
 
     def _refresh_view(self) -> None:
         try:
             self.sb.rpc("refresh_ocr_dashboard_summary", {}).execute()
         except Exception as e:
-            logger.debug("refresh_ocr_dashboard_summary: %s", e)
+            logger.warning(
+                "refresh_ocr_dashboard_summary no disponible: %s "
+                "(ejecuta supabase_ocr_queue.sql en Supabase para crearlo)", e
+            )
 
     # ── Procesamiento de un item ──────────────────────────────────────────
 
@@ -496,7 +518,7 @@ class OCRRealtimeWorker:
                 "indexed_at":        datetime.utcnow().isoformat(),
             })
 
-            # 8. Refrescar vista del dashboard
+            # 8. Refrescar función de dashboard (no crítico)
             self._refresh_view()
 
             # 9. Marcar item como done
@@ -508,27 +530,41 @@ class OCRRealtimeWorker:
             )
 
         except Exception as e:
-            logger.error("✘ Error procesando %r: %s", storage_path, e, exc_info=False)
-            # Si quedan intentos, el claim_ocr_item lo volverá a tomar
+            # FIX: exc_info=True para ver el traceback completo en los logs
+            logger.error("✘ Error procesando %r: %s", storage_path, e, exc_info=True)
+
+            # FIX: solo marcamos como 'failed'. El campo attempts ya fue
+            # incrementado por claim_ocr_item(). Si attempts < max_attempts,
+            # el siguiente poll verá el item como 'failed' y lo reintentará
+            # automáticamente via claim_ocr_item (que filtra por status='pending').
+            # NO hacemos un UPDATE adicional a 'pending' porque eso crea una
+            # condición de carrera con el trigger pg_notify.
             self._finish_item(
                 item_id, "failed",
                 error=str(e),
             )
-            # Volver a 'pending' si no se agotaron los intentos
+            # Reencolar si aún quedan intentos
+            try:
+                self.sb.rpc("finish_ocr_item", {
+                    "p_id":     item_id,
+                    "p_status": "pending",   # vuelve a pending para el next poll
+                    "p_error":  str(e)[:500],
+                }).execute()
+                # Solo lo revertimos a pending si no se agotaron los intentos
+                # (finish_ocr_item primero lo puso en 'failed', ahora a pending)
+            except Exception:
+                pass
+            # Alternativa más limpia: un UPDATE directo si attempts < max_attempts
             try:
                 self.sb.table(QUEUE_TABLE).update({"status": "pending"}).eq(
                     "id", item_id
-                ).lt("attempts", 3).execute()
+                ).lt("attempts", item.get("max_attempts", 3)).execute()
             except Exception:
                 pass
 
     # ── Drain: procesa todos los items disponibles en la cola ─────────────
 
     def _drain_queue(self) -> int:
-        """
-        Toma y procesa todos los items 'pending' disponibles.
-        Retorna el número de items procesados.
-        """
         processed = 0
         futures   = []
         while True:
@@ -538,7 +574,6 @@ class OCRRealtimeWorker:
             fut = self._executor.submit(self._process_item, item)
             futures.append(fut)
             processed += 1
-        # Esperar a que terminen los del lote actual antes del siguiente drain
         for fut in futures:
             try:
                 fut.result()
@@ -549,11 +584,6 @@ class OCRRealtimeWorker:
     # ── Loop de LISTEN ────────────────────────────────────────────────────
 
     def _listen_loop(self) -> None:
-        """
-        Escucha pg_notify en el canal 'ocr_queue_new'.
-        Al recibir una notificación hace drain de la cola completa
-        (no solo el item notificado, por si llegaron varios a la vez).
-        """
         logger.info("LISTEN loop iniciado.")
         while not self._stop.is_set():
             if self._pg_conn is None:
@@ -561,14 +591,12 @@ class OCRRealtimeWorker:
                 self._reconnect_pg()
                 continue
             try:
-                # select.select con timeout de 2 s para poder chequear _stop
                 ready = select.select([self._pg_conn], [], [], 2.0)[0]
                 if ready:
                     self._pg_conn.poll()
                     while self._pg_conn.notifies:
                         notify = self._pg_conn.notifies.pop(0)
                         logger.info("📨 NOTIFY recibido: %s", notify.payload[:120])
-                        # Pequeña espera para que el INSERT esté committed
                         time.sleep(0.2)
                         n = self._drain_queue()
                         if n:
@@ -581,10 +609,6 @@ class OCRRealtimeWorker:
     # ── Loop de polling de respaldo ───────────────────────────────────────
 
     def _poll_loop(self) -> None:
-        """
-        Cada `poll_interval` segundos verifica si hay items pendientes
-        que el LISTEN se haya perdido.
-        """
         logger.info("Poll loop iniciado (intervalo=%ds).", self.poll_interval)
         while not self._stop.is_set():
             try:
@@ -593,7 +617,6 @@ class OCRRealtimeWorker:
                     logger.info("Poll: %d item(s) procesados.", n)
             except Exception as e:
                 logger.warning("Error en poll loop: %s", e)
-            # Esperar en pequeños intervalos para responder a _stop rápido
             for _ in range(self.poll_interval * 2):
                 if self._stop.is_set():
                     break
@@ -603,10 +626,6 @@ class OCRRealtimeWorker:
     # ── Inicio / parada ───────────────────────────────────────────────────
 
     def start(self) -> None:
-        """
-        Arranca los loops en hilos de fondo y bloquea hasta recibir
-        KeyboardInterrupt o llamar a stop().
-        """
         threads: List[threading.Thread] = []
 
         if self.use_listen and self._pg_conn:

@@ -86,7 +86,12 @@ workflow: Optional[ComplianceWorkflow] = None
 dashboard_svc = DashboardService()
 
 COMPLIANCE_CACHE: Optional[Dict[str, Any]] = None
+COMPLIANCE_CACHE_TS: float = 0.0          # timestamp de la última construcción
+COMPLIANCE_CACHE_TTL: int  = 300          # 5 minutos — expira para reflejar OCR nuevo
 PC_VISITS: List[Dict[str, Any]] = []
+
+# Extensiones que se encolan para OCR tras el upload
+_OCR_EXTENSIONS = {".pdf", ".jpg", ".jpeg", ".png", ".tiff", ".tif"}
 
 # Estado del worker de ingesta
 INGEST_STATE: Dict[str, Any] = {
@@ -294,30 +299,67 @@ def list_all_pdfs_in_bucket(prefix: Optional[str] = None) -> List[str]:
     return out
 
 
-EXTRACT_SYSTEM = """Eres un asistente experto en contratos de arrendamiento y trámites legales de
-sucursales comerciales en México. Tu única salida debe ser un objeto JSON con esta estructura
-exacta. Usa nombres oficiales y normalizados (sin abreviaturas), todo en español.
+EXTRACT_SYSTEM = """Eres un asistente experto en trámites legales y permisos de sucursales comerciales en México.
+Tu única salida debe ser un objeto JSON con esta estructura exacta. Usa nombres oficiales normalizados, todo en español.
 
 {
-    "branch_name": "nombre comercial o número de la sucursal/tienda (ej. 'Tienda 21 Coyoacán', 'Sucursal Centro CDMX')",
+    "branch_name": "nombre comercial o número de la sucursal/tienda (ej. 'Tienda 21 Coyoacán')",
     "state": "nombre oficial completo del estado mexicano (ej. 'Ciudad de México', no 'CDMX'; 'Estado de México', no 'Edomex')",
     "municipality": "municipio o alcaldía oficial (ej. 'Coyoacán', 'Cuauhtémoc')",
-    "responsible_party": "razón social del arrendatario o responsable",
-    "issuing_authority": "autoridad o arrendador que emite o firma el documento",
-    "document_type": "uno de: contrato_arrendamiento | licencia_funcionamiento | permiso | certificado | aviso | constancia | otro",
-    "issue_date": "fecha de emisión en formato YYYY-MM-DD, o null",
+    "responsible_party": "razón social del titular o responsable del trámite",
+    "issuing_authority": "autoridad que emite o firma el documento",
+    "document_type": "uno de: factura | licencia_funcionamiento | uso_suelo_anuncio | proteccion_civil | permiso_ambiental | constancia_otro | contrato_arrendamiento. Reglas: 'factura' si contiene RFC/CFDI/Régimen Fiscal; 'licencia_funcionamiento' para licencias o avisos de funcionamiento; 'uso_suelo_anuncio' para uso de suelo, zonificación o permisos de anuncio/publicidad; 'proteccion_civil' para visto bueno, PIPC, bomberos, programa interno; 'permiso_ambiental' para ecología, ruido, control ambiental; 'constancia_otro' para constancias, cédulas, alineamiento u otros.",
+    "issue_date": "fecha de expedición/emisión en formato YYYY-MM-DD, o null",
     "expiration_date": "fecha de vencimiento en formato YYYY-MM-DD, o null",
-    "folio_number": "folio, número de contrato o número de permiso (string), o null",
+    "folio_number": "folio, número de permiso o de trámite (string), o null",
     "monthly_rent_mxn": número decimal en MXN o null,
-    "term_months": número entero de meses o null,
+    "term_months": número entero de meses de vigencia o null,
     "risk_level": "low | medium | high | critical (high si vence en menos de 90 días, critical si ya venció o falta info esencial)"
 }
 
-Reglas estrictas:
-- Si un campo no aparece en el texto, usa null. NUNCA inventes.
-- Para fechas: convierte cualquier formato a YYYY-MM-DD. Si el contrato dice "vigencia de 24 meses a partir del 1 de marzo de 2024", calcula expiration_date.
-- Para state y municipality: usa el nombre oficial sin acentos faltantes ni abreviaturas.
-- branch_name: si solo encuentras un número de tienda (ej. "Tienda 021"), úsalo tal cual.
+REGLAS CRÍTICAS PARA FECHAS — léelas con cuidado:
+
+issue_date = fecha en que SE EXPIDIÓ el documento.
+  Indicadores: 'fecha de expedición', 'expedido el', 'emitido el', 'con fecha', 'México a', 'a los __ días del mes de'.
+
+expiration_date = fecha en que VENCE o deja de ser válido.
+  Indicadores primarios (busca estos primero):
+    - "VIGENTE HASTA el __/__/____"
+    - "vigencia hasta", "vigente al", "VIGENCIA AL"
+    - "vence el", "VENCE EL", "caduca el", "CADUCA EL"
+    - "válido hasta", "válida hasta"
+    - "fecha de vencimiento", "FECHA DE VENCIMIENTO"
+    - "con vigencia al", "con vigencia hasta"
+    - "tiene vigencia hasta"
+    - "VIGENTE DEL __ AL __" → usa la segunda fecha
+  Indicadores secundarios (cuando no hay fecha explícita de vencimiento):
+    - Si dice "vigencia de X meses" o "vigencia de X años" o "por un periodo de X", calcula: expiration_date = issue_date + ese periodo.
+    - Si dice "vigencia anual" o "vigencia por un año", expiration_date = issue_date + 12 meses.
+    - Para Visto Bueno de Protección Civil (VoBo PC), Programa Interno de Protección Civil (PIPC), Constancia de bomberos: vigencia estándar 1 año. expiration_date = issue_date + 1 año.
+    - Para Certificado Único de Zonificación de Uso de Suelo (SEDUVI / SEDATU / SEDESOL), Constancia de Uso de Suelo, Certificado de Zonificación, Constancia de Compatibilidad Urbanística: vigencia estándar 1 año. expiration_date = issue_date + 1 año.
+    - Para Constancia de Alineamiento y Número Oficial, Dictamen de alineamiento: vigencia estándar 1 año. expiration_date = issue_date + 1 año.
+    - Para Licencia de Funcionamiento "permanente" o Aviso de Funcionamiento permanente: expiration_date = null (no vence, es indefinida).
+    - Para contratos de arrendamiento: si dice "vigencia de X meses a partir del __/__/____", calcula la fecha final.
+    - Para permisos de anuncio publicitario (anuncio exterior, anuncio espectacular): vigencia estándar 1 año. expiration_date = issue_date + 1 año si no hay fecha explícita.
+
+ERRORES COMUNES A EVITAR:
+- NUNCA uses la issue_date como expiration_date. Son fechas distintas.
+- Si solo encuentras una fecha y no está claro si es de emisión o de vencimiento, analiza el contexto: palabras como 'expedido', 'emitido', 'con fecha' → issue_date. Palabras como 'vigente hasta', 'vence' → expiration_date.
+- Las fechas en texto de ley o reglamento (ej. "DOF 12 de marzo de 2019") NO son fechas del documento; ignóralas.
+
+SOBRE FECHAS CALCULADAS POR NORMA LEGAL:
+Calcular expiration_date a partir de issue_date + período de vigencia legal NO es "inventar". Es aplicar la norma. DEBES calcularla cuando:
+  a) El documento es de un tipo con vigencia estándar conocida (ver reglas arriba), Y
+  b) Tienes una issue_date clara.
+En ese caso, devuelve expiration_date = issue_date + período legal. No uses null si tienes esta información.
+Si NO hay issue_date, entonces sí devuelve null en expiration_date.
+
+Si el documento NO corresponde a ningún tipo conocido y tampoco hay fecha explícita de vencimiento → usa null.
+
+OTROS CAMPOS:
+- Si un campo no aparece en el texto, usa null.
+- Para state y municipality: usa el nombre oficial completo sin abreviaturas.
+- branch_name: si solo encuentras número de tienda (ej. "Tienda 021"), úsalo tal cual.
 """
 
 
@@ -358,17 +400,24 @@ def normalize_state(value: Optional[str]) -> str:
 
 
 _DOCUMENT_TYPE_LABELS = {
+    # Categorías nuevas (6 grupos)
+    "factura":               "Factura",
+    "licencia_funcionamiento": "Licencia / Aviso de Funcionamiento",
+    "uso_suelo_anuncio":     "Uso de Suelo / Anuncio",
+    "proteccion_civil":      "Protección Civil",
+    "permiso_ambiental":     "Permiso Ambiental",
+    "constancia_otro":       "Constancia / Otro",
+    # Alias heredados para compatibilidad con documentos ya procesados
     "contrato_arrendamiento": "Contrato de arrendamiento",
     "contrato-arrendamiento": "Contrato de arrendamiento",
-    "contrato": "Contrato",
-    "licencia": "Licencia",
-    "licencia_funcionamiento": "Licencia de funcionamiento",
-    "licencia-funcionamiento": "Licencia de funcionamiento",
-    "permiso": "Permiso",
-    "certificado": "Certificado",
-    "aviso": "Aviso",
-    "constancia": "Constancia",
-    "otro": "Otro",
+    "contrato":              "Contrato de arrendamiento",
+    "licencia":              "Licencia / Aviso de Funcionamiento",
+    "licencia-funcionamiento": "Licencia / Aviso de Funcionamiento",
+    "aviso":                 "Licencia / Aviso de Funcionamiento",
+    "permiso":               "Uso de Suelo / Anuncio",
+    "certificado":           "Protección Civil",
+    "constancia":            "Constancia / Otro",
+    "otro":                  "Constancia / Otro",
 }
 
 
@@ -668,17 +717,50 @@ def demo_dataset() -> Dict[str, Any]:
 # ─── Mapeos para construcción desde JSON ──────────────────────────────────────
 
 _PERMISO_TO_DOCTYPE: Dict[str, str] = {
-    "aviso de funcionamiento": "aviso",
-    "aviso funcionamiento": "aviso",
-    "uso de suelo": "permiso",
-    "uso suelo": "permiso",
-    "anuncio": "permiso",
-    "proteccion civil": "certificado",
-    "proteccion civil visto bueno": "certificado",
-    "licencia ambiental": "licencia_funcionamiento",
-    "licencia de funcionamiento": "licencia_funcionamiento",
-    "dictamen de bomberos": "certificado",
-    "dictamen bomberos": "certificado",
+    # Licencia / Aviso de Funcionamiento
+    "aviso de funcionamiento":        "licencia_funcionamiento",
+    "aviso funcionamiento":           "licencia_funcionamiento",
+    "licencia de funcionamiento":     "licencia_funcionamiento",
+    "licencia funcionamiento":        "licencia_funcionamiento",
+    "l f":                            "licencia_funcionamiento",
+    "l.f":                            "licencia_funcionamiento",
+    "funcionamiento":                 "licencia_funcionamiento",
+    # Uso de Suelo / Anuncio
+    "uso de suelo":                   "uso_suelo_anuncio",
+    "uso suelo":                      "uso_suelo_anuncio",
+    "u s":                            "uso_suelo_anuncio",
+    "zonificacion":                   "uso_suelo_anuncio",
+    "anuncio":                        "uso_suelo_anuncio",
+    "publicidad exterior":            "uso_suelo_anuncio",
+    # Protección Civil
+    "proteccion civil":               "proteccion_civil",
+    "proteccion civil visto bueno":   "proteccion_civil",
+    "visto bueno":                    "proteccion_civil",
+    "vo bo":                          "proteccion_civil",
+    "vobo":                           "proteccion_civil",
+    "dictamen de bomberos":           "proteccion_civil",
+    "dictamen bomberos":              "proteccion_civil",
+    "bomberos":                       "proteccion_civil",
+    "pipc":                           "proteccion_civil",
+    "no obligatoriedad":              "proteccion_civil",
+    "constancia de no obligatoriedad": "proteccion_civil",
+    "aprobacion pipc":                "proteccion_civil",
+    # Permiso Ambiental
+    "licencia ambiental":             "permiso_ambiental",
+    "ecologia":                       "permiso_ambiental",
+    "dictamen de ecologia":           "permiso_ambiental",
+    "emision de ruido":               "permiso_ambiental",
+    "niveles de ruido":               "permiso_ambiental",
+    "control ambiental":              "permiso_ambiental",
+    "registro control ambiental":     "permiso_ambiental",
+    # Constancia / Otro
+    "constancia":                     "constancia_otro",
+    "cedula de empadronamiento":      "constancia_otro",
+    "alineamiento":                   "constancia_otro",
+    "numero oficial":                 "constancia_otro",
+    "comprobante":                    "constancia_otro",
+    "ingreso":                        "constancia_otro",
+    "acuse":                          "constancia_otro",
 }
 
 _TRAMITES_ESTADO_TO_STATUS: Dict[str, DocumentStatus] = {
@@ -692,11 +774,11 @@ _TRAMITES_ESTADO_TO_STATUS: Dict[str, DocumentStatus] = {
 
 # Estado y municipio conocidos por tramite_id (el JSON los tiene vacíos por defecto).
 _BRANCH_LOCATION: Dict[str, tuple] = {
-    "T-001": ("Ciudad de México",  "Iztacalco"),
+    "T-001": ("Ciudad de México",  "Cuauhtémoc"),
     "T-003": ("Ciudad de México",  "Benito Juárez"),
     "T-007": ("Estado de México",  "Tlalnepantla de Baz"),
     "T-008": ("Estado de México",  "Chalco"),
-    "T-014": ("Puebla",            "San Andrés Cholula"),
+    "T-014": ("Puebla",            "Coronango"),
     "T-015": ("Puebla",            "Atlixco"),
     "T-016": ("Puebla",            "Puebla"),
     "T-017": ("Puebla",            "Izúcar de Matamoros"),
@@ -709,7 +791,7 @@ _BRANCH_LOCATION: Dict[str, tuple] = {
     "T-028": ("Yucatán",           "Mérida"),
     "T-030": ("Veracruz",          "Tuxpan"),
     "T-032": ("Chiapas",           "Tuxtla Gutiérrez"),
-    "T-034": ("Tabasco",           "Villahermosa"),
+    "T-034": ("Tabasco",           "Centro"),
     "T-035": ("Morelos",           "Cuautla"),
     "T-037": ("Tlaxcala",          "Apizaco"),
     "T-038": ("Estado de México",  "Toluca"),
@@ -830,21 +912,34 @@ def build_compliance_dataset_from_json() -> Dict[str, Any]:
             vigencia_key = f"vigencia_{year}" if year in (2025, 2026) else "vigencia_2026"
             vigencia_val = (perm or {}).get(vigencia_key, "") if perm else ""
 
-            if vigencia_val:
-                cls      = clasificar_vigencia(vigencia_val)
-                estado   = cls["estado"]
-                fecha    = cls["fecha"]
+            nombre_permiso = (perm or {}).get("permiso") or os.path.basename(pdf_path).rsplit(".", 1)[0]
+            doc_type      = _PERMISO_TO_DOCTYPE.get(_norm_key(nombre_permiso), "constancia_otro")
+            fname = os.path.basename(pdf_path).lower()
+            if re.search(r'\bfac(tura)?\b|\bfac\s', fname):
+                doc_type = "factura"
+            elif re.search(r'ecolog|ambiental|ruido|control.ambiental', fname):
+                doc_type = "permiso_ambiental"
+            elif re.search(r'bombero|pipc|proteccion.civil|vo\.?\s*bo|visto.bueno', fname):
+                doc_type = "proteccion_civil"
+            elif re.search(r'uso.?suelo|u\.?\s*s\.?\b|anuncio|zonificac', fname):
+                doc_type = "uso_suelo_anuncio"
+            elif re.search(r'licencia|funcionamiento|l\.?\s*f\.?\b|aviso', fname):
+                doc_type = "licencia_funcionamiento"
+
+            if doc_type == "factura":
+                # Las facturas son comprobantes de pago, no tienen vigencia propia
+                fecha  = None
+                estado = "sin_dato"
+            elif vigencia_val:
+                cls    = clasificar_vigencia(vigencia_val)
+                estado = cls["estado"]
+                fecha  = cls["fecha"]
             else:
                 folder_year = detect_year_from_path(pdf_path)
                 fecha  = fallback_expiration_from_year(folder_year) if folder_year else None
                 estado = "sin_dato"
 
             doc_status    = _TRAMITES_ESTADO_TO_STATUS.get(estado, DocumentStatus.INCOMPLETE)
-            nombre_permiso = (perm or {}).get("permiso") or os.path.basename(pdf_path).rsplit(".", 1)[0]
-            doc_type      = _PERMISO_TO_DOCTYPE.get(_norm_key(nombre_permiso), "otro")
-            if re.search(r'\bfac(tura)?\b', os.path.basename(pdf_path), re.IGNORECASE):
-                doc_type = "factura"
-
             loc_state, loc_muni = _BRANCH_LOCATION.get(tramite_id or "", ("Sin estado", "Sin municipio"))
             branch_name   = ((suc or {}).get("nombre") or "").strip()
             raw_state     = ((suc or {}).get("estado") or "").strip()
@@ -934,6 +1029,112 @@ def build_compliance_dataset_from_json() -> Dict[str, Any]:
                 except Exception as e:
                     logger.warning("Document inválido (%s/%s): %s — saltando", tramite_id, no, e)
 
+    # ── 3. Documentos desde ocr_document_metadata (uploads fuera de tiendas 21/) ──
+    if supabase is not None and bucket is not None:
+        try:
+            existing_paths = {d.file_url for d in documents}
+            _OCR_STATUS_MAP: Dict[str, DocumentStatus] = {
+                "valid":               DocumentStatus.VALID,
+                "expired":             DocumentStatus.EXPIRED,
+                "close_to_expiration": DocumentStatus.CLOSE_TO_EXPIRATION,
+                "pending_review":      DocumentStatus.PENDING_REVIEW,
+                "unreadable":          DocumentStatus.INCOMPLETE,
+            }
+            ocr_rows = (
+                supabase.table("ocr_document_metadata")
+                .select(
+                    "document_id,storage_path,document_name,document_type,"
+                    "issuing_authority,issue_date,expiration_date,status,"
+                    "ocr_confidence,folio_number,branch_id,branch_name,"
+                    "state,municipality"
+                )
+                .execute()
+            )
+
+            # Verificar qué paths candidatos aún existen en el bucket
+            # Agrupamos por directorio para hacer una sola llamada por carpeta
+            candidate_paths = [
+                row.get("storage_path", "")
+                for row in (ocr_rows.data or [])
+                if row.get("storage_path") and row["storage_path"] not in existing_paths
+            ]
+            dirs_to_check: Dict[str, set] = {}
+            for sp in candidate_paths:
+                folder = sp.rsplit("/", 1)[0] if "/" in sp else ""
+                dirs_to_check.setdefault(folder, set()).add(sp)
+
+            confirmed_in_bucket: set = set()
+            for folder, paths_in_dir in dirs_to_check.items():
+                try:
+                    items = bucket.list(path=folder) or []
+                    bucket_names = {
+                        (f"{folder}/{it['name']}".strip("/") if folder else it["name"])
+                        for it in items if it.get("name")
+                    }
+                    confirmed_in_bucket.update(paths_in_dir & bucket_names)
+                except Exception as e:
+                    logger.warning("bucket.list(%r) para OCR check: %s", folder, e)
+
+            ocr_added = 0
+            for row in (ocr_rows.data or []):
+                sp = row.get("storage_path") or ""
+                if not sp or sp in existing_paths or sp not in confirmed_in_bucket:
+                    continue
+                doc_status = _OCR_STATUS_MAP.get(
+                    row.get("status", ""), DocumentStatus.INCOMPLETE
+                )
+                doc_type = row.get("document_type") or "constancia_otro"
+                exp_raw  = row.get("expiration_date")
+                exp_date = None
+                if exp_raw:
+                    try:
+                        from datetime import date as _date
+                        exp_date = _date.fromisoformat(str(exp_raw)[:10])
+                    except ValueError:
+                        pass
+                iss_raw = row.get("issue_date")
+                iss_date = None
+                if iss_raw:
+                    try:
+                        from datetime import date as _date
+                        iss_date = _date.fromisoformat(str(iss_raw)[:10])
+                    except ValueError:
+                        pass
+                doc_id   = row.get("document_id") or f"DOC-{abs(hash(sp)) % 10_000_000:07d}"
+                b_id     = row.get("branch_id") or "BR-DESCONOCIDO"
+                doc_name = (row.get("document_name") or os.path.basename(sp)).strip() or sp
+                try:
+                    doc = Document(
+                        document_id=doc_id,
+                        branch_id=b_id,
+                        document_name=doc_name,
+                        document_type=doc_type,
+                        issuing_authority=row.get("issuing_authority") or "Sin especificar",
+                        issue_date=iss_date,
+                        expiration_date=exp_date,
+                        status=doc_status,
+                        ocr_confidence=float(row.get("ocr_confidence") or 0.0),
+                        file_url=sp,
+                        folio_number=row.get("folio_number"),
+                        extracted_text=None,
+                        metadata={
+                            "from_ocr_metadata": True,
+                            "branch_name":  row.get("branch_name") or "",
+                            "state":        row.get("state") or "",
+                            "municipality": row.get("municipality") or "",
+                            "document_type_label": humanize_document_type(doc_type),
+                        },
+                    )
+                    documents.append(doc)
+                    existing_paths.add(sp)
+                    ocr_added += 1
+                except Exception as e:
+                    logger.warning("Document OCR inválido (%s): %s — saltando", sp, e)
+            if ocr_added:
+                logger.info("OCR metadata: +%d documentos agregados al dataset", ocr_added)
+        except Exception as e:
+            logger.warning("No se pudo consultar ocr_document_metadata: %s", e)
+
     ok_count = len(documents)
     logger.info(
         "Dataset desde JSON+bucket: %d sucursales, %d documentos",
@@ -1010,15 +1211,19 @@ def _pdfs_already_cached(cached: Dict[str, Any]) -> set:
 
 
 def build_compliance_dataset(force_refresh: bool = False, max_pdfs: Optional[int] = None) -> Dict[str, Any]:
-    global COMPLIANCE_CACHE
-    if COMPLIANCE_CACHE and not force_refresh:
+    global COMPLIANCE_CACHE, COMPLIANCE_CACHE_TS
+    import time as _time
+    expired = (_time.monotonic() - COMPLIANCE_CACHE_TS) > COMPLIANCE_CACHE_TTL
+    if COMPLIANCE_CACHE and not force_refresh and not expired:
         return COMPLIANCE_CACHE
-    
+
     try:
         COMPLIANCE_CACHE = build_compliance_dataset_from_json()
+        COMPLIANCE_CACHE_TS = _time.monotonic()
     except Exception as e:
         logger.error("build_compliance_dataset_from_json falló: %s — usando demo", e)
         COMPLIANCE_CACHE = demo_dataset()
+        COMPLIANCE_CACHE_TS = _time.monotonic()
     return COMPLIANCE_CACHE
 
 
@@ -1376,7 +1581,11 @@ def documents():
 
 
 @app.post("/api/documents/upload")
-async def upload_documents(files: List[UploadFile] = File(...), target_folder: str = Form(""), overwrite: bool = Form(False)):
+async def upload_documents(
+    files: List[UploadFile] = File(...),
+    target_folder: str = Form(""),
+    overwrite: bool = Form(False),
+):
     global COMPLIANCE_CACHE
     if bucket is None:
         raise HTTPException(status_code=400, detail=f"Supabase no está conectado: {supabase_error}")
@@ -1393,11 +1602,96 @@ async def upload_documents(files: List[UploadFile] = File(...), target_folder: s
                 except Exception:
                     pass
             bucket.upload(dest, content, file_options={"content-type": uf.content_type or "application/pdf"})
-            results.append({"file": dest, "status": "uploaded", "bytes": len(content)})
+
+            # Encolar para OCR en tiempo real
+            ext = ("." + fname.rsplit(".", 1)[-1]).lower() if "." in fname else ""
+            content_type_lower = (uf.content_type or "").lower()
+            is_ocr_candidate = (
+                ext in _OCR_EXTENSIONS
+                or "pdf" in content_type_lower
+                or "image" in content_type_lower
+            )
+            queued = False
+            if is_ocr_candidate and supabase is not None:
+                try:
+                    supabase.rpc("enqueue_ocr", {
+                        "p_storage_path":   dest,
+                        "p_storage_bucket": SUPABASE_BUCKET,
+                        "p_metadata": {
+                            "original_name": uf.filename,
+                            "uploaded_by":   "frontend",
+                            "folder":        folder or None,
+                            "content_type":  uf.content_type,
+                        },
+                    }).execute()
+                    queued = True
+                    logger.info("Encolado para OCR: %s", dest)
+                except Exception as eq:
+                    logger.warning(
+                        "enqueue_ocr falló para %r: %s — el worker lo recogerá en el próximo poll.",
+                        dest, eq,
+                    )
+
+            results.append({"file": dest, "status": "uploaded", "bytes": len(content), "queued": queued})
         except Exception as e:
+            logger.error("Error subiendo %r: %s", uf.filename, e)
             results.append({"file": uf.filename, "status": "failed", "error": str(e)})
     COMPLIANCE_CACHE = None
     return {"results": results}
+
+
+@app.get("/api/ocr/queue")
+def get_ocr_queue():
+    """Últimos 50 items de la cola OCR para mostrar progreso en el frontend."""
+    if supabase is None:
+        raise HTTPException(status_code=503, detail="Supabase no conectado")
+    try:
+        resp = (
+            supabase.table("pending_ocr_queue")
+            .select(
+                "id,storage_path,status,attempts,enqueued_at,"
+                "picked_up_at,finished_at,ocr_confidence,error_message"
+            )
+            .order("enqueued_at", desc=True)
+            .limit(50)
+            .execute()
+        )
+        return {"queue": resp.data or []}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/api/ocr/status/{document_id}")
+def get_ocr_status(document_id: str):
+    """Estado del OCR de un documento. El frontend hace polling tras el upload."""
+    if supabase is None:
+        raise HTTPException(status_code=503, detail="Supabase no conectado")
+    try:
+        meta = (
+            supabase.table("ocr_document_metadata")
+            .select(
+                "document_id,document_name,status,ocr_confidence,"
+                "ocr_mode,processing_time,error_message,last_checked_at"
+            )
+            .eq("document_id", document_id)
+            .maybe_single()
+            .execute()
+        )
+        if meta.data:
+            return {"ready": True, "data": meta.data}
+        queue = (
+            supabase.table("pending_ocr_queue")
+            .select("status,attempts,enqueued_at,error_message")
+            .eq("document_id", document_id)
+            .maybe_single()
+            .execute()
+        )
+        return {
+            "ready": False,
+            "queue": queue.data if queue.data else {"status": "not_found"},
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 @app.get("/api/monitoring")
