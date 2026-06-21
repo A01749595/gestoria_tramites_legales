@@ -40,7 +40,7 @@ import { getDashboard, getTramitesResumen, API_BASE } from "../services/api";
 const COLOR = {
   // ─── SEMAFORIZACIÓN (Estatus de Alerta y Totales) ───
   green: "#5aaf94",     // Verde pastel clínico (contrasta hermoso con texto oscuro)
-  amber: "#d6ab4e",     // Amarillo vainilla / arena 
+  amber: "#d6ab4e",     // Amarillo vainilla / arena
   red: "#a13232",       // Rojo salmón claro
   blue: "#3B82F6",      // Info / Total / Score (Azul moderno e inteligente)
   gray: "#9fa9b7",      // Sin fecha / No legible / "Otros" (Gris neutro limpio)
@@ -92,24 +92,36 @@ const STATUS_ORDER = [
 
 // Tipos de tramite colores y labels.
 const TYPE_COLOR = {
-  licencia_funcionamiento: COLOR.teal,
-  constancia:              COLOR.indigo,
+  // 6 categorías nuevas del backend
+  factura:                 COLOR.grayblue,
+  licencia_funcionamiento: COLOR.orange,
+  uso_suelo_anuncio:       COLOR.pink,
+  proteccion_civil:        COLOR.cyan,
+  permiso_ambiental:       COLOR.green,
+  constancia_otro:         COLOR.indigo,
+  // Alias heredados (documentos procesados con tipos anteriores)
+  aviso:                   COLOR.teal,
   permiso:                 COLOR.pink,
   certificado:             COLOR.cyan,
+  constancia:              COLOR.indigo,
   contrato_arrendamiento:  COLOR.purple,
-  factura:                 COLOR.grayblue,
-  aviso:                   COLOR.orange,
   otro:                    COLOR.gray,
 };
 
 const TYPE_LABEL = {
-  licencia_funcionamiento: "Licencia de funcionamiento",
-  contrato_arrendamiento:  "Contrato arrendamiento",
-  permiso:                 "Permiso",
-  constancia:              "Constancia",
-  certificado:             "Certificado",
+  // 6 categorías nuevas del backend
   factura:                 "Factura",
-  aviso:                   "Aviso",
+  licencia_funcionamiento: "Lic. / Aviso Funcionamiento",
+  uso_suelo_anuncio:       "Uso de Suelo / Anuncio",
+  proteccion_civil:        "Protección Civil",
+  permiso_ambiental:       "Permiso Ambiental",
+  constancia_otro:         "Constancia / Otro",
+  // Alias heredados
+  aviso:                   "Lic. / Aviso Funcionamiento",
+  permiso:                 "Uso de Suelo / Anuncio",
+  certificado:             "Protección Civil",
+  constancia:              "Constancia / Otro",
+  contrato_arrendamiento:  "Contrato arrendamiento",
   otro:                    "Otro",
 };
 
@@ -187,16 +199,50 @@ function typePieData(docs) {
     .sort((a, b) => b.value - a.value);
 }
 
+
+// ── Gestores y sus zonas ──────────────────────────────────────────
+const GESTORES = [
+  {
+    id: "norte",
+    nombre: "Gestor Norte",
+    color: "#062076",
+    estados: [
+      "Baja California","Baja California Sur","Sonora","Chihuahua",
+      "Coahuila","Nuevo León","Tamaulipas","Sinaloa","Durango",
+    ],
+  },
+  {
+    id: "centro",
+    nombre: "Gestor Centro",
+    color: "#062076",
+    estados: [
+      "Ciudad de México","Estado de México","Jalisco","Guanajuato","Querétaro",
+      "Michoacán","Hidalgo","Morelos","Tlaxcala","Puebla","Veracruz",
+      "Colima","Aguascalientes","Nayarit","Zacatecas","San Luis Potosí",
+    ],
+  },
+  {
+    id: "sur",
+    nombre: "Gestor Sur",
+    color: "#062076",
+    estados: [
+      "Guerrero","Oaxaca","Chiapas","Tabasco","Campeche","Yucatán","Quintana Roo",
+    ],
+  },
+];
+
+
 // ──────────────────────────────────────────────────────────────────
 // Componente principal
 // ──────────────────────────────────────────────────────────────────
 export default function Dashboard() {
-  const navigate = useNavigate(); 
+  const navigate = useNavigate();
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [ingestStatus, setIngestStatus] = useState(null);
   const pollRef = useRef(null);
+  const [gestorActivo, setGestorActivo] = useState(null); // null = todos
 
   async function fetchStatus() {
     try {
@@ -263,24 +309,39 @@ export default function Dashboard() {
   const ocrStats = data?.data?.ocr_stats || {};
   const totalPdfs = data?.data?.total_pdfs || 0;
 
-  // Conteos globales por status (vienen del backend pero también los
-  // derivamos en frontend para tener consistencia con las dimensiones).
-  const totalDocs = docs.length || overview.total_documents || 0;
+  // ── Filtrado por gestor ── (debe ir ANTES de byStatus y kpis)
+  const estadosGestor = useMemo(() => {
+    if (!gestorActivo) return null;
+    return new Set(GESTORES.find((g) => g.id === gestorActivo)?.estados || []);
+  }, [gestorActivo]);
+
+  const docsFiltrados = useMemo(() =>
+    estadosGestor
+      ? docs.filter((d) => estadosGestor.has(d.branch_state))
+      : docs,
+  [docs, estadosGestor]);
+
+  const branchesFiltradas = useMemo(() =>
+    estadosGestor
+      ? branches.filter((b) => estadosGestor.has(b.state))
+      : branches,
+  [branches, estadosGestor]);
+
+  // Conteos globales por status derivados desde docsFiltrados
+  const totalDocs = docsFiltrados.length || overview.total_documents || 0;
   const byStatus = useMemo(() => {
     const out = { valid: 0, close_to_expiration: 0, expired: 0, incomplete: 0,
                   missing: 0, unreadable: 0, pending_review: 0 };
-    for (const d of docs) out[d.status] = (out[d.status] || 0) + 1;
+    for (const d of docsFiltrados) out[d.status] = (out[d.status] || 0) + 1;
     return out;
-  }, [docs]);
+  }, [docsFiltrados]);
 
-  // pieData ya no se usa — la dona ahora muestra tipos de documento
-
-  // Año en curso: si el backend marcó docs con metadata.folder_year=2026,
-  // los contamos aparte para mostrarlos como KPI prioritario.
+  // Año en curso filtrado
   const docsFolder2026 = useMemo(
-    () => docs.filter((d) => (d.metadata?.folder_year) === 2026),
-    [docs],
+    () => docsFiltrados.filter((d) => (d.metadata?.folder_year) === 2026),
+    [docsFiltrados],
   );
+
 
   // KPIs principales en orden semáforo:
   // Total → Vigentes (verde) → Por vencer (amber) → Vencidos (rojo).
@@ -289,7 +350,7 @@ export default function Dashboard() {
       {
         titulo: "Documentos totales",
         valor: number(totalDocs),
-        sub: `${number(branches.length || overview.total_branches || 0)} sucursales`,
+        sub: `${number(branchesFiltradas.length || overview.total_branches || 0)} sucursales`,
         icono: "FileText",
         color: "blue",
       },
@@ -330,7 +391,7 @@ export default function Dashboard() {
         color: "purple",
       },
     ],
-    [byStatus, totalDocs, compliance, branches.length, overview.total_branches, docsFolder2026.length],
+    [byStatus, totalDocs, compliance, branchesFiltradas.length, overview.total_branches, docsFolder2026.length],
   );
 
   const ingestBusy =
@@ -344,7 +405,7 @@ export default function Dashboard() {
         <div>
           <h1 className="page-title">Dashboard</h1>
           <p className="page-sub">
-            Controla el cumplimiento de tus sucursales con esta vista general de KPIs, gráficos y mapa interactivo. 
+            Controla el cumplimiento de tus sucursales con esta vista general de KPIs, gráficos y mapa interactivo.
           </p>
         </div>
         <div className="actions-row">
@@ -357,6 +418,46 @@ export default function Dashboard() {
           </button>
         </div>
       </div>
+
+      {/* ── Selector de gestor ── */}
+      <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
+        <span style={{ fontSize: 13, fontWeight: 600, color: "var(--text-sub, #062076)" }}>
+          Filtrar por gestor:
+        </span>
+        <button
+          onClick={() => setGestorActivo(null)}
+          style={{
+            padding: "6px 16px", borderRadius: 99, fontSize: 13, fontWeight: 600,
+            border: `2px solid ${!gestorActivo ? "#062076" : "#e5e7eb"}`,
+            background: !gestorActivo ? "#062076" : "transparent",
+            color: !gestorActivo ? "#fff" : "#062076",
+            cursor: "pointer", transition: "all 0.15s",
+          }}
+        >
+          Todos
+        </button>
+        {GESTORES.map((g) => (
+          <button
+            key={g.id}
+            onClick={() => setGestorActivo(gestorActivo === g.id ? null : g.id)}
+            style={{
+              padding: "6px 16px", borderRadius: 99, fontSize: 13, fontWeight: 600,
+              border: `2px solid ${gestorActivo === g.id ? g.color : "#e5e7eb"}`,
+              background: gestorActivo === g.id ? g.color : "transparent",
+              color: gestorActivo === g.id ? "#fff" : "#062076",
+              cursor: "pointer", transition: "all 0.15s",
+            }}
+          >
+            {g.nombre}
+          </button>
+        ))}
+        {gestorActivo && (
+          <span style={{ fontSize: 12, color: "#bac5da", fontStyle: "italic" }}>
+            {GESTORES.find((g) => g.id === gestorActivo)?.estados.length} estados · {docsFiltrados.length} documentos
+          </span>
+        )}
+      </div>
+
 
       {ingestBusy && (
         <div className="card card-info">
@@ -404,10 +505,10 @@ export default function Dashboard() {
 
           {/* ─── Contenido principal ─── */}
           <ResumenView
-            docs={docs}
+            docs={docsFiltrados}
             ocrStats={ocrStats}
             totalPdfs={totalPdfs}
-            branches={branches}
+            branches={branchesFiltradas}
             scores={data?.data?.compliance_scores || {}}
             navigate={navigate}
           />
@@ -462,7 +563,7 @@ function ResumenView({ docs, ocrStats, totalPdfs, branches, scores, navigate }) 
       };
     }),
   [branches, scores, docs]);*/
-  
+
   const resolvedBranches = useMemo(() => {
   const map = new Map();
   for (const b of branches) {
@@ -612,9 +713,9 @@ const mapPoints = useMemo(() =>
                       </span>
                     </div>
                   </div>
-                  
+
                   {/* 🧠 CORRECCIÓN 2: Regresamos el onClick con el navigate de React Router */}
-                  <button 
+                  <button
                     onClick={() => {
                       console.log("ID enviado:", p.branch_id); // Para que revises en F12 si el ID existe
                       navigate(`/sucursal/${p.branch_id}`);
@@ -826,7 +927,7 @@ function DocsTable({ docs, limit = 20, title }) {
       .toString()
       .toLowerCase()
       .normalize("NFD")
-      .replace(/[\u0300-\u036f]/g, "");
+      .replace(/[̀-ͯ]/g, "");
   const q = norm(query.trim());
   const filtered = useMemo(() => {
     if (!q) return docs;
@@ -971,7 +1072,7 @@ function TramitesView() {
   }, []);
 
   const norm = (s) =>
-    (s || "").toString().toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+    (s || "").toString().toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "");
 
   const sucursales = resumen?.sucursales || [];
 
